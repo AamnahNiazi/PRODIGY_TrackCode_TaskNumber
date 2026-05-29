@@ -10,6 +10,5 @@ CREATE TABLE Users (
     role NVARCHAR(20) DEFAULT 'user'
 );
 GO
-
--- Insert test admin (password: admin123, hash from bcrypt)
--- Will be created via code or manually.
+-- Optional: Insert a test admin (password will be hashed by app)
+-- INSERT INTO Users (username, email, password_hash, role) VALUES ('admin', 'admin@example.com', '$2b$10$...', 'admin');

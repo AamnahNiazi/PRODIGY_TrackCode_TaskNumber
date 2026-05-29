@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Employee CRUD</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        input, button { margin: 5px; padding: 5px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .section { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Employee Management (Admin Only)</h1>
+    <div class="section">
+        <h3>Login as Admin</h3>
+        <input id="username" placeholder="Username"><br>
+        <input id="password" type="password" placeholder="Password"><br>
+        <button onclick="login()">Login</button>
+        <span id="loginStatus"></span>
+    </div>
+
+    <div class="section" id="adminPanel" style="display:none;">
+        <h3>Add Employee</h3>
+        <input id="name" placeholder="Name"><br>
+        <input id="position" placeholder="Position"><br>
+        <input id="salary" placeholder="Salary"><br>
+        <input id="hireDate" placeholder="Hire Date (YYYY-MM-DD)"><br>
+        <button onclick="addEmployee()">Add Employee</button>
+
+        <h3>Employee List</h3>
+        <button onclick="loadEmployees()">Refresh List</button>
+        <table id="empTable">
+            <thead><tr><th>ID</th><th>Name</th><th>Position</th><th>Salary</th><th>Hire Date</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        let token = '';
+        async function login() {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: document.getElementById('username').value, password: document.getElementById('password').value})
+            });
+            const data = await res.json();
+            if (data.token) {
+                token = data.token;
+                if (data.role === 'admin') {
+                    document.getElementById('adminPanel').style.display = 'block';
+                    document.getElementById('loginStatus').innerText = 'Logged in as admin';
+                    loadEmployees();
+                } else {
+                    alert('You are not an admin');
+                }
+            } else {
+                alert('Login failed: ' + data.error);
+            }
+        }
+
+        async function loadEmployees() {
+            const res = await fetch('/api/employees', { headers: { 'Authorization': `Bearer ${token}` } });
+            const employees = await res.json();
+            const tbody = document.querySelector('#empTable tbody');
+            tbody.innerHTML = '';
+            employees.forEach(emp => {
+                const row = tbody.insertRow();
+                row.insertCell(0).innerText = emp.id;
+                row.insertCell(1).innerHTML = `<input type="text" value="${emp.name}" id="name_${emp.id}">`;
+                row.insertCell(2).innerHTML = `<input type="text" value="${emp.position}" id="pos_${emp.id}">`;
+                row.insertCell(3).innerHTML = `<input type="number" value="${emp.salary}" id="sal_${emp.id}">`;
+                row.insertCell(4).innerHTML = `<input type="date" value="${emp.hire_date}" id="date_${emp.id}">`;
+                const actions = row.insertCell(5);
+                actions.innerHTML = `<button onclick="updateEmployee(${emp.id})">Update</button>
+                                     <button onclick="deleteEmployee(${emp.id})">Delete</button>`;
+            });
+        }
+
+        async function addEmployee() {
+            const name = document.getElementById('name').value;
+            const position = document.getElementById('position').value;
+            const salary = document.getElementById('salary').value;
+            const hire_date = document.getElementById('hireDate').value;
+            const res = await fetch('/api/employees', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ name, position, salary, hire_date })
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            loadEmployees();
+        }
+
+        async function updateEmployee(id) {
+            const name = document.getElementById(`name_${id}`).value;
+            const position = document.getElementById(`pos_${id}`).value;
+            const salary = document.getElementById(`sal_${id}`).value;
+            const hire_date = document.getElementById(`date_${id}`).value;
+            const res = await fetch(`/api/employees/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ name, position, salary, hire_date })
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            loadEmployees();
+        }
+
+        async function deleteEmployee(id) {
+            if (!confirm('Delete this employee?')) return;
+            const res = await fetch(`/api/employees/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            alert(data.message || data.error);
+            loadEmployees();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Local Store - Ecommerce</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .product { display: inline-block; width: 200px; border: 1px solid #ccc; margin: 10px; padding: 10px; text-align: center; }
+        .product img { width: 150px; height: 150px; object-fit: cover; }
+        .cart { position: fixed; right: 20px; top: 20px; background: #f8f8f8; border: 1px solid #ccc; padding: 10px; width: 250px; }
+        .filters { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="cart">
+        <h3>Shopping Cart</h3>
+        <div id="cartItems"></div>
+        <p>Total: $<span id="cartTotal">0</span></p>
+        <button onclick="checkout()">Checkout</button>
+    </div>
+    <h1>Our Products</h1>
+    <div class="filters">
+        <input type="text" id="search" placeholder="Search..." onkeyup="loadProducts()">
+        <select id="category" onchange="loadProducts()"><option value="">All Categories</option></select>
+        <select id="sort" onchange="loadProducts()">
+            <option value="">Default</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+        </select>
+    </div>
+    <div id="products"></div>
+
+    <script>
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        function saveCart() { localStorage.setItem('cart', JSON.stringify(cart)); renderCart(); }
+        function renderCart() {
+            const cartDiv = document.getElementById('cartItems');
+            let total = 0;
+            cartDiv.innerHTML = '';
+            cart.forEach((item, idx) => {
+                total += item.price * item.qty;
+                cartDiv.innerHTML += `<div>${item.name} x${item.qty} - $${(item.price*item.qty).toFixed(2)} <button onclick="removeFromCart(${idx})">❌</button></div>`;
+            });
+            document.getElementById('cartTotal').innerText = total.toFixed(2);
+        }
+        function addToCart(product) {
+            const existing = cart.find(p => p.id === product.id);
+            if (existing) existing.qty++;
+            else cart.push({ id: product.id, name: product.name, price: product.price, qty: 1 });
+            saveCart();
+        }
+        function removeFromCart(idx) { cart.splice(idx,1); saveCart(); }
+        function checkout() { alert('Order placed! (Demo)'); cart = []; saveCart(); }
+
+        async function loadProducts() {
+            const category = document.getElementById('category').value;
+            const sort = document.getElementById('sort').value;
+            const search = document.getElementById('search').value;
+            const res = await fetch(`/api/products?category=${category}&sort=${sort}&search=${search}`);
+            const products = await res.json();
+            const container = document.getElementById('products');
+            container.innerHTML = '';
+            products.forEach(p => {
+                container.innerHTML += `
+                    <div class="product">
+                        <img src="${p.image_url}" alt="${p.name}">
+                        <h4>${p.name}</h4>
+                        <p>${p.description}</p>
+                        <p><strong>$${p.price}</strong></p>
+                        <button onclick='addToCart(${JSON.stringify(p)})'>Add to Cart</button>
+                    </div>
+                `;
+            });
+        }
+
+        async function loadCategories() {
+            const res = await fetch('/api/categories');
+            const categories = await res.json();
+            const select = document.getElementById('category');
+            categories.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.text = c; select.appendChild(opt); });
+        }
+        loadCategories();
+        loadProducts();
+        renderCart();
+    </script>
+</body>
+</html>

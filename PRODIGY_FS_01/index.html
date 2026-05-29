@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth System</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        input, button { margin: 5px; padding: 8px; }
+        .section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; width: 300px; }
+        #output { margin-top: 20px; background: #f0f0f0; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>User Authentication System</h1>
+    <div class="section">
+        <h3>Register</h3>
+        <input id="regUser" placeholder="Username"><br>
+        <input id="regEmail" placeholder="Email"><br>
+        <input id="regPass" type="password" placeholder="Password"><br>
+        <button onclick="register()">Register</button>
+    </div>
+    <div class="section">
+        <h3>Login</h3>
+        <input id="loginUser" placeholder="Username"><br>
+        <input id="loginPass" type="password" placeholder="Password"><br>
+        <button onclick="login()">Login</button>
+    </div>
+    <div class="section">
+        <h3>Protected Actions</h3>
+        <button onclick="getProfile()">Get Profile (Logged in only)</button>
+        <button onclick="getAdmin()">Admin Area</button>
+    </div>
+    <div id="output"></div>
+
+    <script>
+        let token = '';
+        async function register() {
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('regUser').value,
+                    email: document.getElementById('regEmail').value,
+                    password: document.getElementById('regPass').value
+                })
+            });
+            const data = await res.json();
+            document.getElementById('output').innerText = JSON.stringify(data);
+        }
+        async function login() {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('loginUser').value,
+                    password: document.getElementById('loginPass').value
+                })
+            });
+            const data = await res.json();
+            if (data.token) {
+                token = data.token;
+                document.getElementById('output').innerText = `Login successful! Role: ${data.role}`;
+            } else {
+                document.getElementById('output').innerText = data.error;
+            }
+        }
+        async function getProfile() {
+            if (!token) { document.getElementById('output').innerText = 'Please login first'; return; }
+            const res = await fetch('/api/profile', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            document.getElementById('output').innerText = JSON.stringify(data);
+        }
+        async function getAdmin() {
+            if (!token) { document.getElementById('output').innerText = 'Please login first'; return; }
+            const res = await fetch('/api/admin', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            document.getElementById('output').innerText = JSON.stringify(data);
+        }
+    </script>
+</body>
+</html>

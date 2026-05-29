@@ -1,0 +1,16 @@
+CREATE DATABASE ChatDB;
+GO
+USE ChatDB;
+GO
+CREATE TABLE Users (
+    id INT IDENTITY PRIMARY KEY,
+    username NVARCHAR(50) UNIQUE NOT NULL,
+    password_hash NVARCHAR(255) NOT NULL
+);
+CREATE TABLE Messages (
+    id INT IDENTITY PRIMARY KEY,
+    from_user NVARCHAR(50),
+    to_room NVARCHAR(100),
+    content NVARCHAR(500),
+    timestamp DATETIME DEFAULT GETDATE()
+);

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Chat</title>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        #chatBox { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; width: 500px; }
+        #messageInput { width: 400px; }
+        .online { color: green; }
+    </style>
+</head>
+<body>
+    <div id="auth">
+        <h2>Chat Login</h2>
+        <input id="username" placeholder="Username"><br>
+        <input id="password" type="password" placeholder="Password"><br>
+        <button onclick="register()">Register</button>
+        <button onclick="login()">Login</button>
+        <span id="authMsg"></span>
+    </div>
+    <div id="chatApp" style="display:none;">
+        <h3>Welcome, <span id="currentUser"></span></h3>
+        <div>Online: <span id="onlineUsers"></span></div>
+        <div>
+            <button onclick="joinRoom('general')">General</button>
+            <input id="privateUser" placeholder="Username for private chat">
+            <button onclick="startPrivateChat()">Private Chat</button>
+        </div>
+        <div id="chatBox"></div>
+        <input id="messageInput" type="text" placeholder="Type message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    <script>
+        let socket, token, currentUser, currentRoom = 'general';
+        async function register() {
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({username: username.value, password: password.value})
+            });
+            const data = await res.json();
+            authMsg.innerText = data.message || data.error;
+        }
+        async function login() {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({username: username.value, password: password.value})
+            });
+            const data = await res.json();
+            if (data.token) {
+                token = data.token;
+                currentUser = data.username;
+                document.getElementById('currentUser').innerText = currentUser;
+                document.getElementById('auth').style.display = 'none';
+                document.getElementById('chatApp').style.display = 'block';
+                initSocket();
+                loadHistory('general');
+            } else {
+                authMsg.innerText = data.error;
+            }
+        }
+        function initSocket() {
+            socket = io({ auth: { token } });
+            socket.on('connect', () => console.log('Socket connected'));
+            socket.on('message', (msg) => {
+                const chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML += `<div><b>${msg.from}</b> [${msg.time}]: ${msg.message}</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+            socket.on('onlineUsers', (users) => {
+                document.getElementById('onlineUsers').innerText = users.join(', ');
+            });
+            socket.emit('joinRoom', 'general');
+        }
+        function sendMessage() {
+            const msg = document.getElementById('messageInput').value;
+            if (!msg) return;
+            socket.emit('chatMessage', { message: msg, to: null });
+            document.getElementById('messageInput').value = '';
+        }
+        function joinRoom(room) {
+            currentRoom = room;
+            socket.emit('joinRoom', room);
+            loadHistory(room);
+        }
+        function startPrivateChat() {
+            const to = document.getElementById('privateUser').value;
+            if (!to) return;
+            const room = [currentUser, to].sort().join('_');
+            currentRoom = room;
+            socket.emit('joinRoom', room);
+            loadHistory(room);
+        }
+        async function loadHistory(room) {
+            const res = await fetch(`/api/history/${room}`);
+            const history = await res.json();
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = '';
+            history.forEach(msg => {
+                chatBox.innerHTML += `<div><b>${msg.from_user}</b> [${new Date(msg.timestamp).toLocaleTimeString()}]: ${msg.content}</div>`;
+            });
+        }
+    </script>
+</body>
+</html>
